@@ -12,6 +12,25 @@ type Config struct {
 	CurrentUsername string `json:"current_user_name"`
 }
 
+func Reset() error {
+	configPath, err := getConfigPath()
+	if err != nil {
+		return err
+	}
+
+	template, err := os.ReadFile("./internal/config/template.json")
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(configPath, template, 0o644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c Config) SetUser(username string) error {
 	if c.CurrentUsername != "" {
 		return errors.New("username has already been set")
@@ -66,23 +85,4 @@ func Read() (Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func Clear() error {
-	configPath, err := getConfigPath()
-	if err != nil {
-		return err
-	}
-
-	template, err := os.ReadFile("./internal/config/template.json")
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(configPath, template, 0o644)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
