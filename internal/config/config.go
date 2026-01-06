@@ -3,7 +3,6 @@ package config
 
 import (
 	"encoding/json"
-	"errors"
 	"os"
 )
 
@@ -32,9 +31,6 @@ func Reset() error {
 }
 
 func (c Config) SetUser(username string) error {
-	if c.CurrentUsername != "" {
-		return errors.New("username has already been set")
-	}
 	c.CurrentUsername = username
 
 	data, err := json.MarshalIndent(c, "", "	")

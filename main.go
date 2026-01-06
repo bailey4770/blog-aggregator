@@ -1,15 +1,22 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/bailey4770/blog-aggregator/internal/config"
+	"github.com/bailey4770/blog-aggregator/internal/database"
+	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 type state struct {
+	db  *database.Queries
 	cfg *config.Config
 }
 
@@ -51,7 +58,16 @@ func handlerLogin(s *state, cmd command) error {
 		return errors.New("too many args provided. need just one arg for username")
 	}
 
-	err := s.cfg.SetUser(cmd.args[0])
+	name := cmd.args[0]
+
+	_, err := s.db.GetUser(context.Background(), name)
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Fatal("Error: user not found")
+	} else if err != nil {
+		log.Fatal("Error: ", err)
+	}
+
+	err = s.cfg.SetUser(name)
 	if err != nil {
 		return err
 	}
@@ -60,20 +76,62 @@ func handlerLogin(s *state, cmd command) error {
 	return nil
 }
 
-func main() {
-	err := config.Reset()
-	if err != nil {
-		log.Fatal("Error resetting config file:", err)
+func handlerRegister(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("usage: %v <name>", cmd.name)
 	}
 
+	name := cmd.args[0]
+	user, err := s.db.CreateUser(context.Background(), database.CreateUserParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      name,
+	})
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Constraint == "users_name_key" {
+			return fmt.Errorf("user already exists")
+		}
+		return fmt.Errorf("couldn't create user: %w", err)
+	}
+
+	fmt.Println("User created successfully: ")
+	printUser(user)
+
+	err = handlerLogin(s, command{name: "login", args: []string{name}})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func printUser(user database.User) {
+	fmt.Printf("- ID:		%v\n", user.ID)
+	fmt.Printf("- Name:		%v\n", user.Name)
+}
+
+func main() {
 	cfg, err := config.Read()
 	if err != nil {
-		log.Fatal("Error reading config file:", err)
+		log.Fatal("Error reading config file: ", err)
 	}
 
-	currentState := &state{cfg: &cfg}
-	currentCommands := commands{make(map[string]func(*state, command) error)}
-	err = currentCommands.register("login", handlerLogin)
+	db, err := sql.Open("postgres", cfg.DBURL)
+	if err != nil {
+		log.Fatal("Error opening SQL database: ", err)
+	}
+	dbQueries := database.New(db)
+
+	currentState := &state{db: dbQueries, cfg: &cfg}
+
+	commandList := commands{make(map[string]func(*state, command) error)}
+	err = commandList.register("login", handlerLogin)
+	if err != nil {
+		log.Fatal("Error: ", err)
+	}
+	err = commandList.register("register", handlerRegister)
 	if err != nil {
 		log.Fatal("Error: ", err)
 	}
@@ -84,16 +142,16 @@ func main() {
 	}
 
 	// arg[0] is program name, which can be safely ignored
-	currentCmd := command{name: args[1], args: args[2:]}
+	cmd := command{name: args[1], args: args[2:]}
 
-	err = currentCommands.run(currentState, currentCmd)
+	err = commandList.run(currentState, cmd)
 	if err != nil {
 		log.Fatal("Error running command: ", err)
 	}
 
 	newCfg, err := config.Read()
 	if err != nil {
-		log.Fatal("Error reading config file:", err)
+		log.Fatal("Error reading config file: ", err)
 	}
 
 	fmt.Println(newCfg)
