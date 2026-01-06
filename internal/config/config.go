@@ -11,7 +11,7 @@ type Config struct {
 	CurrentUsername string `json:"current_user_name"`
 }
 
-func Reset() error {
+func ResetConfig() error {
 	configPath, err := getConfigPath()
 	if err != nil {
 		return err

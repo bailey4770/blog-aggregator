@@ -107,6 +107,20 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
+func handlerReset(s *state, _ command) error {
+	err := s.db.DropAllUsers(context.Background())
+	if err != nil {
+		return err
+	}
+
+	err = config.ResetConfig()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func printUser(user database.User) {
 	fmt.Printf("- ID:		%v\n", user.ID)
 	fmt.Printf("- Name:		%v\n", user.Name)
@@ -132,6 +146,10 @@ func main() {
 		log.Fatal("Error: ", err)
 	}
 	err = commandList.register("register", handlerRegister)
+	if err != nil {
+		log.Fatal("Error: ", err)
+	}
+	err = commandList.register("reset", handlerReset)
 	if err != nil {
 		log.Fatal("Error: ", err)
 	}
