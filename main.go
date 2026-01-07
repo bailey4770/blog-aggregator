@@ -5,17 +5,22 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/bailey4770/blog-aggregator/internal/config"
 	"github.com/bailey4770/blog-aggregator/internal/database"
+	"github.com/bailey4770/blog-aggregator/internal/rssclient"
 )
 
 type state struct {
-	db  *database.Queries
-	cfg *config.Config
+	client rssclient.Client
+	db     *database.Queries
+	cfg    *config.Config
 }
 
 func main() {
+	client := rssclient.NewClient(5 * time.Second)
+
 	cfg, err := config.Read()
 	if err != nil {
 		log.Fatal("Error reading config file: ", err)
@@ -27,7 +32,7 @@ func main() {
 	}
 
 	dbQueries := database.New(db)
-	currentState := &state{db: dbQueries, cfg: &cfg}
+	currentState := &state{client: client, db: dbQueries, cfg: &cfg}
 
 	commandList, err := getCommands()
 	if err != nil {

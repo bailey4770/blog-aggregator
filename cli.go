@@ -27,19 +27,28 @@ type commands struct {
 // create new handlerFunc() for command
 func getCommands() (commands, error) {
 	commandList := commands{make(map[string]func(*state, command) error)}
+
 	err := commandList.new("login", handlerLogin)
 	if err != nil {
 		return commands{}, err
 	}
+
 	err = commandList.new("register", handlerRegister)
 	if err != nil {
 		return commands{}, err
 	}
+
 	err = commandList.new("reset", handlerReset)
 	if err != nil {
 		return commands{}, err
 	}
+
 	err = commandList.new("users", handlerUsers)
+	if err != nil {
+		return commands{}, err
+	}
+
+	err = commandList.new("agg", handlerAgg)
 	if err != nil {
 		return commands{}, err
 	}
@@ -156,6 +165,32 @@ func handlerUsers(s *state, cmd command) error {
 
 	currentUser := s.cfg.CurrentUsername
 	printUsers(users, currentUser)
+
+	return nil
+}
+
+func handlerAgg(s *state, cmd command) error {
+	var feedURL string
+	if len(cmd.args) != 1 {
+		feedURL = "https://www.wagslane.dev/index.xml"
+	} else {
+		feedURL = cmd.args[0]
+	}
+
+	RSSFeed, err := s.client.FetchFeed(context.Background(), feedURL)
+	if err != nil {
+		return err
+	}
+
+	RSSFeed.RemoveHTMLUnescape()
+
+	fmt.Println("Title: ", RSSFeed.Channel.Title)
+	fmt.Println("Link: ", RSSFeed.Channel.Link)
+	fmt.Println("Description: ", RSSFeed.Channel.Description)
+
+	for i, item := range RSSFeed.Channel.Items {
+		fmt.Printf("Item %d: %s\n", i, item)
+	}
 
 	return nil
 }
