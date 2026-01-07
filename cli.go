@@ -53,6 +53,11 @@ func getCommands() (commands, error) {
 		return commands{}, err
 	}
 
+	err = commandList.new("addfeed", handlerAddFeed)
+	if err != nil {
+		return commands{}, err
+	}
+
 	return commandList, nil
 }
 
@@ -192,5 +197,33 @@ func handlerAgg(s *state, cmd command) error {
 		fmt.Printf("Item %d: %s\n", i, item)
 	}
 
+	return nil
+}
+
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.args) != 2 {
+		return fmt.Errorf("usage: %v <name> <url>", cmd.name)
+	}
+
+	name := cmd.args[0]
+	url := cmd.args[1]
+	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUsername)
+	if err != nil {
+		return err
+	}
+
+	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      name,
+		Url:       url,
+		UserID:    currentUser.ID,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Successfully created feed: ", feed)
 	return nil
 }
