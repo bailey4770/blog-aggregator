@@ -58,6 +58,11 @@ func getCommands() (commands, error) {
 		return commands{}, err
 	}
 
+	err = commandList.new("feeds", handlerFeeds)
+	if err != nil {
+		return commands{}, err
+	}
+
 	return commandList, nil
 }
 
@@ -225,5 +230,18 @@ func handlerAddFeed(s *state, cmd command) error {
 	}
 
 	fmt.Println("Successfully created feed: ", feed)
+	return nil
+}
+
+func handlerFeeds(s *state, cmd command) error {
+	feeds, err := s.db.GetFeedList(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, feed := range feeds {
+		fmt.Println(feed)
+	}
+
 	return nil
 }

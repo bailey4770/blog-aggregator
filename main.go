@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -32,7 +31,7 @@ func main() {
 	}
 
 	dbQueries := database.New(db)
-	currentState := &state{client: client, db: dbQueries, cfg: &cfg}
+	currentState := &state{client: client, db: dbQueries, cfg: cfg}
 
 	commandList, err := getCommands()
 	if err != nil {
@@ -51,11 +50,4 @@ func main() {
 	if err != nil {
 		log.Fatal("Error running command: ", err)
 	}
-
-	newCfg, err := config.Read()
-	if err != nil {
-		log.Fatal("Error reading config file: ", err)
-	}
-
-	fmt.Println(newCfg)
 }

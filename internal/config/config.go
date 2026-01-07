@@ -63,22 +63,22 @@ func getConfigPath() (string, error) {
 	return configPath, nil
 }
 
-func Read() (Config, error) {
+func Read() (*Config, error) {
 	configPath, err := getConfigPath()
 	if err != nil {
-		return Config{}, err
+		return nil, err
 	}
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return Config{}, err
+		return nil, err
 	}
 
 	var cfg Config
 	err = json.Unmarshal(data, &cfg)
 	if err != nil {
-		return Config{}, err
+		return nil, err
 	}
 
-	return cfg, nil
+	return &cfg, nil
 }
