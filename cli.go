@@ -63,6 +63,11 @@ func getCommands() (commands, error) {
 		return commands{}, err
 	}
 
+	err = commandList.new("follow", handlerFollow)
+	if err != nil {
+		return commands{}, err
+	}
+
 	return commandList, nil
 }
 
@@ -243,5 +248,36 @@ func handlerFeeds(s *state, cmd command) error {
 		fmt.Println(feed)
 	}
 
+	return nil
+}
+
+func handlerFollow(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("usage: %v <url>", cmd.name)
+	}
+	url := cmd.args[0]
+
+	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUsername)
+	if err != nil {
+		return err
+	}
+
+	feedRecord, err := s.db.GetFeedRecord(context.Background(), url)
+	if err != nil {
+		return err
+	}
+
+	feed, err := s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    currentUser.ID,
+		FeedID:    feedRecord.ID,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s successfully followed %s\n%v\n", currentUser.Name, feedRecord.Name, feed)
 	return nil
 }
