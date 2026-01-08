@@ -3,7 +3,9 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -11,73 +13,80 @@ type Config struct {
 	CurrentUsername string `json:"current_user_name"`
 }
 
-func ResetConfig() error {
+func getDefaultConfig() Config {
+	return Config{
+		DBURL: "postgres://postgres:@localhost:5432/gator?sslmode=disable",
+	}
+}
+
+func getConfigPath() (string, error) {
+	const configFileName = ".gatorconfig.json"
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("could not get user home dir: %v", err)
+	}
+
+	configPath := filepath.Join(homeDir, configFileName)
+	return configPath, nil
+}
+
+func Reset() error {
 	configPath, err := getConfigPath()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get config file path: %v", err)
 	}
 
-	template, err := os.ReadFile("./internal/config/template.json")
+	templateConfig := getDefaultConfig()
+	templateJSON, err := json.Marshal(templateConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not marshal template: %v", err)
 	}
 
-	err = os.WriteFile(configPath, template, 0o644)
+	err = os.WriteFile(configPath, templateJSON, 0o644)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not write template json to config file: %v", err)
 	}
 
 	return nil
 }
 
-func (c Config) SetUser(username string) error {
+func (c *Config) SetUser(username string) error {
 	c.CurrentUsername = username
 
 	data, err := json.MarshalIndent(c, "", "	")
 	if err != nil {
-		return err
+		return fmt.Errorf("could not marshal config struct: %v", err)
 	}
 
 	configPath, err := getConfigPath()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get config file path: %v", err)
 	}
 
 	err = os.WriteFile(configPath, data, 0o644)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not write template json to config file: %v", err)
 	}
 
 	return nil
-}
-
-func getConfigPath() (string, error) {
-	const configFileName = "/.gatorconfig.json"
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	configPath := homeDir + "/" + configFileName
-	return configPath, nil
 }
 
 func Read() (*Config, error) {
 	configPath, err := getConfigPath()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get config file path: %v", err)
 	}
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not read file: %v", err)
 	}
 
 	var cfg Config
 	err = json.Unmarshal(data, &cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not unmarshal config file: %v", err)
 	}
 
 	return &cfg, nil

@@ -159,7 +159,7 @@ func handlerReset(s *state, _ command) error {
 		return err
 	}
 
-	err = config.ResetConfig()
+	err = config.Reset()
 	if err != nil {
 		return err
 	}
