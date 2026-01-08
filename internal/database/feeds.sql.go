@@ -91,11 +91,11 @@ func (q *Queries) GetFeedList(ctx context.Context) ([]GetFeedListRow, error) {
 
 const getFeedRecord = `-- name: GetFeedRecord :one
 SELECT id, created_at, updated_at, name, url, user_id FROM feeds
-WHERE name = $1
+WHERE url = $1
 `
 
-func (q *Queries) GetFeedRecord(ctx context.Context, name string) (Feed, error) {
-	row := q.db.QueryRowContext(ctx, getFeedRecord, name)
+func (q *Queries) GetFeedRecord(ctx context.Context, url string) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, getFeedRecord, url)
 	var i Feed
 	err := row.Scan(
 		&i.ID,
