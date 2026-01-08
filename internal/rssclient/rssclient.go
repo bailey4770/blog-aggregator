@@ -26,6 +26,7 @@ func (c *Client) requestFromURL(ctx context.Context, url string) ([]byte, error)
 	if err != nil {
 		return []byte{}, fmt.Errorf("could not creat request: %w", err)
 	}
+	req.Header.Set("User-Agent", "gator")
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
