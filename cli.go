@@ -53,17 +53,17 @@ func getCommands() (commands, error) {
 		return commands{}, err
 	}
 
-	err = commandList.new("addfeed", handlerAddFeed)
+	err = commandList.new("addfeed", middlewareLoggedIn(handlerAddFeed))
 	if err != nil {
 		return commands{}, err
 	}
 
-	err = commandList.new("feeds", handlerFeeds)
+	err = commandList.new("feeds", middlewareLoggedIn(handlerFeeds))
 	if err != nil {
 		return commands{}, err
 	}
 
-	err = commandList.new("follow", handlerFollow)
+	err = commandList.new("follow", middlewareLoggedIn(handlerFollow))
 	if err != nil {
 		return commands{}, err
 	}
@@ -215,17 +215,23 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUsername)
+		if err != nil {
+			return err
+		}
+		return handler(s, cmd, currentUser)
+	}
+}
+
+func handlerAddFeed(s *state, cmd command, currentUser database.User) error {
 	if len(cmd.args) != 2 {
 		return fmt.Errorf("usage: %v <name> <url>", cmd.name)
 	}
 
 	name := cmd.args[0]
 	url := cmd.args[1]
-	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUsername)
-	if err != nil {
-		return err
-	}
 
 	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{
 		ID:        uuid.New(),
@@ -242,7 +248,7 @@ func handlerAddFeed(s *state, cmd command) error {
 	fmt.Println("Successfully created feed:", feed.Name, feed.Url)
 
 	followCmd := command{name: "follow", args: []string{feed.Url}}
-	err = handlerFollow(s, followCmd)
+	err = handlerFollow(s, followCmd, currentUser)
 	if err != nil {
 		return fmt.Errorf("could not follow feed: %v", err)
 	}
@@ -250,7 +256,7 @@ func handlerAddFeed(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFeeds(s *state, cmd command) error {
+func handlerFeeds(s *state, cmd command, currentUser database.User) error {
 	feeds, err := s.db.GetFeedList(context.Background())
 	if err != nil {
 		return err
@@ -263,16 +269,11 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, currentUser database.User) error {
 	if len(cmd.args) != 1 {
 		return fmt.Errorf("usage: %v <url>", cmd.name)
 	}
 	url := cmd.args[0]
-
-	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUsername)
-	if err != nil {
-		return err
-	}
 
 	feedRecord, err := s.db.GetFeedRecord(context.Background(), url)
 	if err != nil {
