@@ -23,40 +23,6 @@ func NewClient(timeout time.Duration) Client {
 	}
 }
 
-type statusError struct {
-	code int
-	body string
-}
-
-func (e *statusError) Error() string {
-	return fmt.Sprintf("response failed with status code %d: %s", e.code, e.body)
-}
-
-func (c *Client) requestFromURL(ctx context.Context, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return []byte{}, fmt.Errorf("could not creat request: %w", err)
-	}
-	req.Header.Set("User-Agent", "gator")
-
-	res, err := c.httpClient.Do(req)
-	if err != nil {
-		return []byte{}, fmt.Errorf("could not fetch data: %w", err)
-	}
-	defer func() { _ = res.Body.Close() }()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return []byte{}, fmt.Errorf("could not read response body: %w", err)
-	}
-
-	if res.StatusCode > 299 {
-		return []byte{}, &statusError{res.StatusCode, string(body)}
-	}
-
-	return body, nil
-}
-
 type Channel struct {
 	Title       string    `xml:"title"`
 	Link        string    `xml:"link"`
@@ -107,4 +73,38 @@ func (c Client) FetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error)
 	}
 
 	return &RSSFeed, nil
+}
+
+type statusError struct {
+	code int
+	body string
+}
+
+func (e *statusError) Error() string {
+	return fmt.Sprintf("response failed with status code %d: %s", e.code, e.body)
+}
+
+func (c *Client) requestFromURL(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return []byte{}, fmt.Errorf("could not creat request: %w", err)
+	}
+	req.Header.Set("User-Agent", "gator")
+
+	res, err := c.httpClient.Do(req)
+	if err != nil {
+		return []byte{}, fmt.Errorf("could not fetch data: %w", err)
+	}
+	defer func() { _ = res.Body.Close() }()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return []byte{}, fmt.Errorf("could not read response body: %w", err)
+	}
+
+	if res.StatusCode > 299 {
+		return []byte{}, &statusError{res.StatusCode, string(body)}
+	}
+
+	return body, nil
 }
