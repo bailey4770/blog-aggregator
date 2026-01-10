@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/bailey4770/blog-aggregator/internal/config"
@@ -74,6 +75,11 @@ func getCommands() (commands, error) {
 	}
 
 	err = commandList.new("unfollow", middlewareLoggedIn(handlerUnfollow))
+	if err != nil {
+		return commands{}, err
+	}
+
+	err = commandList.new("browse", middlewareLoggedIn(handlerBrowse))
 	if err != nil {
 		return commands{}, err
 	}
@@ -200,6 +206,7 @@ func scrapeFeeds(s *state) error {
 		return fmt.Errorf("could not get oldest updated feed from db: %v", err)
 	}
 
+	fmt.Printf("Scraping posts from %s %s\n", feedDB.Name, feedDB.Url)
 	feed, err := s.client.FetchFeed(context.Background(), feedDB.Url)
 	if err != nil {
 		return fmt.Errorf("could not fetch feed: %v", err)
@@ -215,13 +222,30 @@ func scrapeFeeds(s *state) error {
 	}
 
 	feed.RemoveHTMLUnescape()
+	for _, item := range feed.Channel.Items {
+		pubDate, err := time.Parse(time.RFC1123Z, item.PubDate)
+		if err != nil {
+			return fmt.Errorf("could not parse pub date %v", err)
+		}
 
-	fmt.Println("Title: ", feed.Channel.Title)
-	fmt.Println("Link: ", feed.Channel.Link)
-	fmt.Println("Description: ", feed.Channel.Description)
-
-	for i, item := range feed.Channel.Items {
-		fmt.Printf("Item title %d: %s\n", i, item.Title)
+		err = s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       sql.NullString{String: item.Title, Valid: true},
+			Url:         item.Link,
+			Description: sql.NullString{String: item.Description, Valid: true},
+			PublishedAt: pubDate,
+			FeedID:      feedDB.ID,
+		})
+		if err != nil {
+			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+				// Duplicate key error. Safe to ignore.
+				continue
+			} else {
+				return fmt.Errorf("could not create post in DB %v", err)
+			}
+		}
 	}
 
 	return nil
@@ -229,7 +253,7 @@ func scrapeFeeds(s *state) error {
 
 func handlerAgg(s *state, cmd command) error {
 	if len(cmd.args) != 1 {
-		return fmt.Errorf("usage: %v <name> <request_frequency>", cmd.name)
+		return fmt.Errorf("usage: %v <request_frequency>", cmd.name)
 	}
 
 	requestFrequency, err := time.ParseDuration(cmd.args[0])
@@ -367,5 +391,38 @@ func handlerUnfollow(s *state, cmd command, currentUser database.User) error {
 	}
 
 	fmt.Printf("%s successfully unfollowed feed %s\n", currentUser.Name, feedURL)
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, currentUser database.User) error {
+	limit := 2
+	if len(cmd.args) == 1 {
+		var err error
+		limit, err = strconv.Atoi(cmd.args[0])
+		if err != nil {
+			return fmt.Errorf("could not parse limit arg: %v", err)
+		}
+	}
+
+	posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: currentUser.ID,
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		return fmt.Errorf("could not get posts for current user: %v", err)
+	}
+
+	for _, posts := range posts {
+		title := "null"
+		if posts.Title.Valid {
+			title = posts.Title.String
+		}
+
+		publishDate := posts.PublishedAt.Format("2006-01-02")
+
+		fmt.Printf("- %v '%v' from %s\n", publishDate, title, posts.FeedName)
+		fmt.Printf("    %v\n", posts.Url)
+	}
+
 	return nil
 }
