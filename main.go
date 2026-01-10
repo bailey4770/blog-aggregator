@@ -11,7 +11,7 @@ import (
 	"github.com/bailey4770/blog-aggregator/internal/rssclient"
 )
 
-const version = "v1.0.0"
+const version = "v1.0.1"
 
 type state struct {
 	client rssclient.Client
