@@ -194,30 +194,58 @@ func handlerUsers(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAgg(s *state, cmd command) error {
-	var feedURL string
-	if len(cmd.args) != 1 {
-		feedURL = "https://www.wagslane.dev/index.xml"
-	} else {
-		feedURL = cmd.args[0]
-	}
-
-	RSSFeed, err := s.client.FetchFeed(context.Background(), feedURL)
+func scrapeFeeds(s *state) error {
+	feedDB, err := s.db.GetNextFeedToFetch(context.Background())
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get oldest updated feed from db: %v", err)
 	}
 
-	RSSFeed.RemoveHTMLUnescape()
+	feed, err := s.client.FetchFeed(context.Background(), feedDB.Url)
+	if err != nil {
+		return fmt.Errorf("could not fetch feed: %v", err)
+	}
 
-	fmt.Println("Title: ", RSSFeed.Channel.Title)
-	fmt.Println("Link: ", RSSFeed.Channel.Link)
-	fmt.Println("Description: ", RSSFeed.Channel.Description)
+	err = s.db.MarkFeedFetched(context.Background(), database.MarkFeedFetchedParams{
+		UpdatedAt:     time.Now(),
+		LastFetchedAt: sql.NullTime{Time: time.Now(), Valid: true},
+		ID:            feedDB.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("could not mark feed as fetched: %v", err)
+	}
 
-	for i, item := range RSSFeed.Channel.Items {
-		fmt.Printf("Item %d: %s\n", i, item)
+	feed.RemoveHTMLUnescape()
+
+	fmt.Println("Title: ", feed.Channel.Title)
+	fmt.Println("Link: ", feed.Channel.Link)
+	fmt.Println("Description: ", feed.Channel.Description)
+
+	for i, item := range feed.Channel.Items {
+		fmt.Printf("Item title %d: %s\n", i, item.Title)
 	}
 
 	return nil
+}
+
+func handlerAgg(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("usage: %v <name> <request_frequency>", cmd.name)
+	}
+
+	requestFrequency, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("could not parse time duration: %v", err)
+	}
+
+	fmt.Printf("collecting feeds every %v\n", requestFrequency)
+
+	ticker := time.NewTicker(requestFrequency)
+	for ; ; <-ticker.C {
+		err = scrapeFeeds(s)
+		if err != nil {
+			return err
+		}
+	}
 }
 
 func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {

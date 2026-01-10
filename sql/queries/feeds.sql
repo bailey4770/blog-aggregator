@@ -17,3 +17,13 @@ INNER JOIN users ON users.ID=feeds.user_id;
 -- name: GetFeedRecord :one
 SELECT * FROM feeds
 WHERE url = $1;
+
+-- name: MarkFeedFetched :exec
+UPDATE feeds
+SET updated_at = $1,
+    last_fetched_at = $2
+WHERE id = $3;
+
+-- name: GetNextFeedToFetch :one
+SELECT * FROM feeds
+ORDER BY last_fetched_at ASC NULLS FIRST;
