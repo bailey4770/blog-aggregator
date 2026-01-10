@@ -1,3 +1,5 @@
+github.com/bailey4770/blog-aggregator v0.0.0-20260110181404-0ea33b04fa17 h1:xlHCKPfQvx8CM4fzoQSxoKsoTLhfWiXR90dCl8t4waQ=
+github.com/bailey4770/blog-aggregator v0.0.0-20260110181404-0ea33b04fa17/go.mod h1:4aleVItcBDdRT02XX3mS0uL8i/H7fA6kZZCv/Lwt86w=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
