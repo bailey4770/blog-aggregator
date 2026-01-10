@@ -1,27 +1,27 @@
 # blog-aggregator
 
-Boot.dev project focussing on learning SQL.
+Boot.dev guided project focussing on learning SQL.
 
 ## Installation
 
 ### 1. Install Postgres
 
 - [Official docs](https://www.postgresql.org/download/)
-- Example for Debian: `sudo apt install postgresql postgresql-contrib`
+- Example for Linux (Debian): `sudo apt install postgresql postgresql-contrib`
 
 ### 2. Create a database
 
-`CREATE DATABASE <database_name>`
-
-Run the SQL files found in 'sql/schema/' on that database.
+- Enter the psql shell with `sudo -u postgres psql` (for Linux)
+- Run this command: `CREATE DATABASE <database_name>`
+- Run the SQL files found in 'sql/schema/' on that database.
 
 ### 3. Install Go
 
-[Official docs](https://go.dev/doc/install)
+- [Official docs](https://go.dev/doc/install)
 
 ### 4. Install blog-aggregator CLI
 
-- Run the below command:
+- Run this command:
 `go install github.com/bailey4770/blog-aggregator@latest`
 
 - Ensure your GOBIN (or $GOPATH/bin) is on your PATH, then you can run:
@@ -36,6 +36,8 @@ Run the SQL files found in 'sql/schema/' on that database.
 - This is the server address set as default in the config file.
 
 ## Example Usage
+
+- Run the below commands:
 
 ```
 blog-aggregator register john
