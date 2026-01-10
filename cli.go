@@ -34,6 +34,11 @@ func getCommands() (commands, error) {
 		return commands{}, err
 	}
 
+	err = commandList.new("help", handlerHelp)
+	if err != nil {
+		return commands{}, err
+	}
+
 	err = commandList.new("login", handlerLogin)
 	if err != nil {
 		return commands{}, err
@@ -119,9 +124,23 @@ func handlerVersion(_ *state, _ command) error {
 	return nil
 }
 
+func handlerHelp(_ *state, _ command) error {
+	commandList, err := getCommands()
+	if err != nil {
+		return fmt.Errorf("could not get command list: %v", err)
+	}
+
+	fmt.Println("Available commands:")
+	for name := range commandList.handlers {
+		fmt.Println("-", name)
+	}
+
+	return nil
+}
+
 func handlerLogin(s *state, cmd command) error {
 	if len(cmd.args) == 0 {
-		return errors.New("username not provided")
+		return fmt.Errorf("usage: %v <name>", cmd.name)
 	} else if len(cmd.args) > 1 {
 		return errors.New("too many args provided. need just one arg for username")
 	}
