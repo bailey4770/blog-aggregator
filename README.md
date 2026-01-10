@@ -1,4 +1,4 @@
-# Gator
+# gator
 
 Boot.dev project focussing on learning SQL.
 
