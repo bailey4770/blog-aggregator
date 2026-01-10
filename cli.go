@@ -73,6 +73,11 @@ func getCommands() (commands, error) {
 		return commands{}, err
 	}
 
+	err = commandList.new("unfollow", middlewareLoggedIn(handlerUnfollow))
+	if err != nil {
+		return commands{}, err
+	}
+
 	return commandList, nil
 }
 
@@ -242,7 +247,7 @@ func handlerAddFeed(s *state, cmd command, currentUser database.User) error {
 		UserID:    currentUser.ID,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("could not create feed: %v", err)
 	}
 
 	fmt.Println("Successfully created feed:", feed.Name, feed.Url)
@@ -304,12 +309,35 @@ func handlerFollowing(s *state, cmd command) error {
 	}
 
 	if len(feeds) == 0 {
-		return fmt.Errorf("%s is not following any feeds", currentUser)
+		fmt.Printf("%s is not following any feeds\n", currentUser)
 	}
 
 	for _, feed := range feeds {
 		fmt.Printf("- %s\n", feed.FeedName)
 	}
 
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, currentUser database.User) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("usage: %v <url>", cmd.name)
+	}
+	feedURL := cmd.args[0]
+
+	feed, err := s.db.GetFeedRecord(context.Background(), feedURL)
+	if err != nil {
+		return fmt.Errorf("could not find feed in feeds table: %v", err)
+	}
+
+	_, err = s.db.DeleteFeedFollow(context.Background(), database.DeleteFeedFollowParams{
+		UserID: currentUser.ID,
+		FeedID: feed.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("could not unfollow feed: %v", err)
+	}
+
+	fmt.Printf("%s successfully unfollowed feed %s\n", currentUser.Name, feedURL)
 	return nil
 }
