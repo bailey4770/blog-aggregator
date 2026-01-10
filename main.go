@@ -11,6 +11,8 @@ import (
 	"github.com/bailey4770/blog-aggregator/internal/rssclient"
 )
 
+const version = "v1.0.0"
+
 type state struct {
 	client rssclient.Client
 	db     *database.Queries

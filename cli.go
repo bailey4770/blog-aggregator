@@ -29,7 +29,12 @@ type commands struct {
 func getCommands() (commands, error) {
 	commandList := commands{make(map[string]func(*state, command) error)}
 
-	err := commandList.new("login", handlerLogin)
+	err := commandList.new("version", handlerVersion)
+	if err != nil {
+		return commands{}, err
+	}
+
+	err = commandList.new("login", handlerLogin)
 	if err != nil {
 		return commands{}, err
 	}
@@ -106,6 +111,11 @@ func (c *commands) new(name string, f func(*state, command) error) error {
 	}
 
 	c.handlers[name] = f
+	return nil
+}
+
+func handlerVersion(_ *state, _ command) error {
+	fmt.Println("Version:", version)
 	return nil
 }
 
