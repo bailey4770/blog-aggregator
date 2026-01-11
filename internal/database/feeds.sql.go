@@ -58,11 +58,12 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, e
 }
 
 const getFeedList = `-- name: GetFeedList :many
-SELECT feeds.name, feeds.url, users.name FROM feeds
+SELECT feeds.ID, feeds.name, feeds.url, users.name FROM feeds
 INNER JOIN users ON users.ID=feeds.user_id
 `
 
 type GetFeedListRow struct {
+	ID     uuid.UUID
 	Name   string
 	Url    string
 	Name_2 string
@@ -77,7 +78,12 @@ func (q *Queries) GetFeedList(ctx context.Context) ([]GetFeedListRow, error) {
 	var items []GetFeedListRow
 	for rows.Next() {
 		var i GetFeedListRow
-		if err := rows.Scan(&i.Name, &i.Url, &i.Name_2); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Url,
+			&i.Name_2,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

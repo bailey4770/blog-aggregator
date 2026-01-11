@@ -11,6 +11,7 @@ import (
 
 	"github.com/bailey4770/blog-aggregator/internal/config"
 	"github.com/bailey4770/blog-aggregator/internal/database"
+	"github.com/bailey4770/blog-aggregator/internal/rssclient"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
@@ -229,28 +230,9 @@ func handlerUsers(s *state, cmd command) error {
 	return nil
 }
 
-func scrapeFeeds(s *state) error {
-	feedDB, err := s.db.GetNextFeedToFetch(context.Background())
-	if err != nil {
-		return fmt.Errorf("could not get oldest updated feed from db: %v", err)
-	}
-
-	fmt.Printf("Scraping posts from %s %s\n", feedDB.Name, feedDB.Url)
-	feed, err := s.client.FetchFeed(context.Background(), feedDB.Url)
-	if err != nil {
-		return fmt.Errorf("could not fetch feed: %v", err)
-	}
-
-	err = s.db.MarkFeedFetched(context.Background(), database.MarkFeedFetchedParams{
-		UpdatedAt:     time.Now(),
-		LastFetchedAt: sql.NullTime{Time: time.Now(), Valid: true},
-		ID:            feedDB.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("could not mark feed as fetched: %v", err)
-	}
-
+func savePosts(s *state, feed *rssclient.RSSFeed, feedID uuid.UUID) error {
 	feed.RemoveHTMLUnescape()
+
 	for _, item := range feed.Channel.Items {
 		pubDate, err := time.Parse(time.RFC1123Z, item.PubDate)
 		if err != nil {
@@ -265,7 +247,7 @@ func scrapeFeeds(s *state) error {
 			Url:         item.Link,
 			Description: sql.NullString{String: item.Description, Valid: true},
 			PublishedAt: pubDate,
-			FeedID:      feedDB.ID,
+			FeedID:      feedID,
 		})
 		if err != nil {
 			if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
@@ -280,6 +262,36 @@ func scrapeFeeds(s *state) error {
 	return nil
 }
 
+func scrapeFeeds(s *state, feedDB database.GetFeedListRow, requestFrequency time.Duration) {
+	ticker := time.NewTicker(requestFrequency)
+	defer ticker.Stop()
+
+	for {
+		fmt.Printf("Scraping posts from %s %s\n", feedDB.Name, feedDB.Url)
+		feed, err := s.client.FetchFeed(context.Background(), feedDB.Url)
+		if err != nil {
+			fmt.Printf("could not fetch feed: %v", err)
+			continue
+		}
+
+		err = s.db.MarkFeedFetched(context.Background(), database.MarkFeedFetchedParams{
+			UpdatedAt:     time.Now(),
+			LastFetchedAt: sql.NullTime{Time: time.Now(), Valid: true},
+			ID:            feedDB.ID,
+		})
+		if err != nil {
+			fmt.Printf("could not mark feed as fetched: %v", err)
+		}
+
+		err = savePosts(s, feed, feedDB.ID)
+		if err != nil {
+			fmt.Printf("could not save posts from feed %s: %v", feedDB.Name, err)
+		}
+
+		<-ticker.C
+	}
+}
+
 func handlerAgg(s *state, cmd command) error {
 	if len(cmd.args) != 1 {
 		return fmt.Errorf("usage: %v <request_frequency>", cmd.name)
@@ -292,20 +304,22 @@ func handlerAgg(s *state, cmd command) error {
 
 	fmt.Printf("collecting feeds every %v\n", requestFrequency)
 
-	ticker := time.NewTicker(requestFrequency)
-	for ; ; <-ticker.C {
-		err = scrapeFeeds(s)
-		if err != nil {
-			return err
-		}
+	feedList, err := s.db.GetFeedList(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not get feed list: %v", err)
 	}
+
+	for _, feedDB := range feedList {
+		go scrapeFeeds(s, feedDB, requestFrequency)
+	}
+	select {}
 }
 
 func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
 	return func(s *state, cmd command) error {
 		currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUsername)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not get current user: %v", err)
 		}
 		return handler(s, cmd, currentUser)
 	}

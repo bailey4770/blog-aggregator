@@ -11,7 +11,7 @@ VALUES (
 RETURNING *;
 
 -- name: GetFeedList :many
-SELECT feeds.name, feeds.url, users.name FROM feeds
+SELECT feeds.ID, feeds.name, feeds.url, users.name FROM feeds
 INNER JOIN users ON users.ID=feeds.user_id;
 
 -- name: GetFeedRecord :one
