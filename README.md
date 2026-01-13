@@ -29,7 +29,7 @@ Boot.dev guided project focussing on learning SQL.
 
 ## Configuration
 
-- Run `blog-aggregator config set-db <server_address>`
+- Run `blog-aggregator setdb <server_address>`
 
 - Server address should be in the form `postgres://postgres:@localhost:5432/gator?sslmode=disable`
 

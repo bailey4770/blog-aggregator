@@ -51,9 +51,7 @@ func Reset() error {
 	return nil
 }
 
-func (c *Config) SetUser(username string) error {
-	c.CurrentUsername = username
-
+func (c *Config) write() error {
 	data, err := json.MarshalIndent(c, "", "	")
 	if err != nil {
 		return fmt.Errorf("could not marshal config struct: %v", err)
@@ -67,6 +65,28 @@ func (c *Config) SetUser(username string) error {
 	err = os.WriteFile(configPath, data, 0o644)
 	if err != nil {
 		return fmt.Errorf("could not write template json to config file: %v", err)
+	}
+
+	return nil
+}
+
+func (c *Config) SetDB(url string) error {
+	c.DBURL = url
+
+	err := c.write()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Config) SetUser(username string) error {
+	c.CurrentUsername = username
+
+	err := c.write()
+	if err != nil {
+		return err
 	}
 
 	return nil

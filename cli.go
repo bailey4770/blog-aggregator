@@ -95,6 +95,11 @@ func getCommands() (commands, error) {
 		return commands{}, err
 	}
 
+	err = commandList.new("setdb", handlerSetdb)
+	if err != nil {
+		return commands{}, err
+	}
+
 	return commandList, nil
 }
 
@@ -465,6 +470,20 @@ func handlerBrowse(s *state, cmd command, currentUser database.User) error {
 
 		fmt.Printf("- %v '%v' from %s\n", publishDate, title, posts.FeedName)
 		fmt.Printf("    %v\n", posts.Url)
+	}
+
+	return nil
+}
+
+func handlerSetdb(s *state, cmd command) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("usage: %v <url>", cmd.name)
+	}
+	url := cmd.args[0]
+
+	err := s.cfg.SetDB(url)
+	if err != nil {
+		return fmt.Errorf("could not set database url: %v", err)
 	}
 
 	return nil
